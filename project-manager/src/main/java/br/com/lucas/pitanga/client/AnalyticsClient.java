@@ -1,19 +1,29 @@
 package br.com.lucas.pitanga.client;
 
-import br.com.lucas.pitanga.dto.SimulationRequest;
-import br.com.lucas.pitanga.dto.SimulationResult;
-import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+import java.util.List;
 
-@Path("/api/analyze")
+@Path("/api")
 @RegisterRestClient(configKey="analytics-api")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public interface AnalyticsClient {
+
     @POST
-    SimulationResult simulateGates(SimulationRequest request);
+    @Path("/sta")
+    StaResult analyzeTiming(GraphRequest request);
+
+    @POST
+    @Path("/transistor")
+    TransistorResponse analyzePhysics(TransistorRequest request);
+
+    // DTOs do STA
+    class Node { public String id; public String type; public int delayPs; public Node(String id, String type, int delayPs) { this.id = id; this.type = type; this.delayPs = delayPs; } }
+    class Edge { public String from; public String to; public Edge(String from, String to) { this.from = from; this.to = to; } }
+    class GraphRequest { public List<Node> nodes; public List<Edge> edges; }
+    class StaResult { public int criticalPathDelayPs; public List<String> criticalPathNodes; public double maxFreqGhz; }
+
+    // DTOs da Física do Transistor
+    class TransistorRequest { public double vdd; public double widthNm; public double cLoadFf; }
+    class TransistorResponse { public double saturationCurrentUa; public double propagationDelayPs; public String operationRegion; }
 }

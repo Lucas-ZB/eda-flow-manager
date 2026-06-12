@@ -2,8 +2,6 @@ package br.com.lucas.pitanga.resource;
 
 import br.com.lucas.pitanga.entity.CircuitProject;
 import br.com.lucas.pitanga.client.AnalyticsClient;
-import br.com.lucas.pitanga.dto.SimulationRequest;
-import br.com.lucas.pitanga.dto.SimulationResult;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.Consumes;
@@ -23,6 +21,14 @@ public class ProjectResource {
     @RestClient
     AnalyticsClient analyticsClient;
 
+    // O Envelope: Recebe os metadados do projeto E a Netlist desenhada pelo Front-end
+    public static class ProjectPayload {
+        public String name;
+        public String authorName;
+        public String targetBoard;
+        public AnalyticsClient.GraphRequest netlist;
+    }
+
     @GET
     public List<CircuitProject> listAll() {
         return CircuitProject.listAll();
@@ -30,26 +36,28 @@ public class ProjectResource {
 
     @POST
     @Transactional
-    public Response create(CircuitProject project) {
+    public Response create(ProjectPayload payload) {
+        CircuitProject project = new CircuitProject();
+        project.name = payload.name;
+        project.authorName = payload.authorName;
+        project.targetBoard = payload.targetBoard;
+
         try {
-            // 1. Prepara a requisição de teste para enviar ao Motor B
-            SimulationRequest req = new SimulationRequest();
-            req.componentType = project.targetBoard;
-            req.inputA = 1;
-            req.inputB = 1;
+            // O Gerente apenas repassa o Grafo complexo para o Motor Matemático
+            AnalyticsClient.StaResult result = analyticsClient.analyzeTiming(payload.netlist);
 
-            // 2. O microsserviço A faz uma requisição HTTP para o microsserviço B!
-            SimulationResult result = analyticsClient.simulateGates(req);
-
-            // 3. Atualiza o status do banco baseado na resposta analítica
-            if ("ON".equals(result.ledStatus)) {
+            project.criticalPathPs = result.criticalPathDelayPs;
+            project.maxFreqGhz = result.maxFreqGhz;
+            
+            // Regra de Negócio: Baixamos a meta para 10 GHz para permitir testarmos circuitos maiores
+            if (project.maxFreqGhz >= 10.0) {
                 project.verificationStatus = "PASSED";
             } else {
-                project.verificationStatus = "FAILED";
+                project.verificationStatus = "FAILED (Timing Violation)";
             }
         } catch (Exception e) {
-            // Se o motor estiver desligado, não derrubamos o sistema, apenas avisamos.
             project.verificationStatus = "ERROR_CONNECTION";
+            System.out.println("Erro: " + e.getMessage());
         }
 
         project.persist();

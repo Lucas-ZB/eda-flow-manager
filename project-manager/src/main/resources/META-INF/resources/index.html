@@ -3,169 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EDA Flow Manager - Painel de Controle</title>
+    <title>EDA Flow Manager - Laboratório Físico</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0e1118; color: #e1e7f0; margin: 0; padding: 40px; display: flex; flex-direction: column; align-items: center; }
-        .dashboard { display: grid; grid-template-columns: 1fr; gap: 30px; width: 100%; max-width: 1000px; }
-        @media(min-width: 768px) { .dashboard { grid-template-columns: 400px 1fr; } }
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 30px; width: 100%; max-width: 1200px; }
+        @media(min-width: 768px) { .dashboard { grid-template-columns: 350px 1fr; } }
         .card { background: #161b22; padding: 25px; border-radius: 8px; border: 1px solid #30363d; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        h2, h3 { color: #58a6ff; margin-top: 0; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
-        label { font-weight: 600; margin-top: 12px; display: block; color: #8b949e; font-size: 14px; }
-        input, select { width: 100%; padding: 12px; margin-top: 6px; margin-bottom: 18px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 15px; box-sizing: border-box; }
-        input:focus, select:focus { border-color: #58a6ff; outline: none; }
-        button { width: 100%; background-color: #1f6feb; color: white; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background-color: #388bfd; }
-        .result-box { margin-top: 20px; padding: 15px; border-radius: 6px; display: none; text-align: center; font-weight: bold; font-size: 16px; }
-        .passed { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border: 1px solid #2ea043; }
-        .failed { background-color: rgba(248, 81, 73, 0.15); color: #ff7b72; border: 1px solid #f85149; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #30363d; }
-        th { background-color: #21262d; color: #c9d1d9; font-weight: 600; }
-        tr:hover { background-color: #1f242c; }
-        .badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; display: inline-block; }
-        .badge-passed { background: #235e2f; color: #56d364; }
-        .badge-failed { background: #6e2523; color: #ff7b72; }
-        .badge-error { background: #5d4317; color: #e3b341; }
+        h1 { font-weight: 400; margin-bottom: 30px; }
+        h2, h3 { color: #58a6ff; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        label { font-weight: 600; margin-top: 15px; display: block; color: #8b949e; font-size: 14px; }
+        input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; }
+        .value-display { float: right; color: #58a6ff; font-family: monospace; font-weight: bold; font-size: 16px; }
+        .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .metric-box { background: #0d1117; border: 1px solid #30363d; padding: 15px; border-radius: 6px; text-align: center; }
+        .metric-title { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #3fb950; margin-top: 5px; font-family: monospace; }
+        .metric-value.warning { color: #d29922; }
+        .metric-value.danger { color: #ff7b72; }
     </style>
 </head>
 <body>
 
-<h1 style="margin-bottom: 30px; font-weight: 400;">Painel de Simulação <span style="color: #58a6ff; font-weight: 600;">EDA Flow Manager</span></h1>
+<h1>Laboratório Visual <span style="color: #58a6ff; font-weight: 600;">Inversor CMOS</span></h1>
 
 <div class="dashboard">
     <div class="card">
-        <h3>Nova Simulação</h3>
-        <form id="projectForm">
-            <label for="projectName">Identificação do Circuito:</label>
-            <input type="text" id="projectName" placeholder="Ex: Somador 4-Bits" required>
+        <h3>Parâmetros Físicos</h3>
+        
+        <label>Tensão de Alimentação (Vdd) <span id="vddVal" class="value-display">1.2 V</span></label>
+        <input type="range" id="vdd" min="0.5" max="2.5" step="0.1" value="1.2" oninput="updateLab()">
 
-            <label for="authorName">Responsável Técnico:</label>
-            <input type="text" id="authorName" placeholder="Nome do desenvolvedor" required>
+        <label>Largura do Transistor (W) <span id="wVal" class="value-display">360 nm</span></label>
+        <input type="range" id="w" min="180" max="1000" step="10" value="360" oninput="updateLab()">
 
-            <label for="component">Módulo Alvo (Componente):</label>
-            <select id="component" required>
-                <option value="CD4081">Porta AND (Série CD4081)</option>
-                <option value="CD4069">Porta NOT (Série CD4069)</option>
-            </select>
+        <label>Capacitância de Carga (C_load) <span id="cVal" class="value-display">50 fF</span></label>
+        <input type="range" id="c" min="10" max="200" step="5" value="50" oninput="updateLab()">
 
-            <button type="submit">Iniciar Análise de Sinais</button>
-        </form>
-
-        <div id="resultBox" class="result-box"></div>
+        <div class="metrics-grid">
+            <div class="metric-box">
+                <div class="metric-title">Corrente (Isat)</div>
+                <div class="metric-value" id="outCurrent">-- uA</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Atraso (t_pd)</div>
+                <div class="metric-value warning" id="outDelay">-- ps</div>
+            </div>
+            <div class="metric-box" style="grid-column: span 2;">
+                <div class="metric-title">Região de Operação</div>
+                <div class="metric-value" id="outRegion">--</div>
+            </div>
+        </div>
     </div>
 
     <div class="card">
-        <h3>Histórico de Projetos no Banco de Dados</h3>
-        <div style="overflow-x: auto; max-height: 400px;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Circuito</th>
-                        <th>Autor</th>
-                        <th>Componente</th>
-                        <th>Status V&V</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody">
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: #8b949e;">Carregando dados...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        <h3>Análise de Sinais (Osciloscópio Virtual)</h3>
+        <canvas id="signalChart" height="150"></canvas>
     </div>
 </div>
 
 <script>
-    // Função para buscar os dados do banco e atualizar a tabela
-    async function carregarHistorico() {
-        const tbody = document.getElementById('historyTableBody');
-        try {
-            const response = await fetch('/api/projects');
-            if (response.ok) {
-                const projetos = await response.json();
-                if (projetos.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #8b949e;">Nenhum registro encontrado no banco H2.</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = '';
-                projetos.forEach(p => {
-                    let badgeClass = 'badge-error';
-                    if (p.verificationStatus === 'PASSED') badgeClass = 'badge-passed';
-                    if (p.verificationStatus === 'FAILED') badgeClass = 'badge-failed';
+    let chartInstance = null;
 
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${p.id}</td>
-                            <td style="font-weight: bold; color: #c9d1d9;">${p.name}</td>
-                            <td>${p.authorName}</td>
-                            <td><code style="color: #ff7b72;">${p.targetBoard}</code></td>
-                            <td><span class="badge ${badgeClass}">${p.verificationStatus}</span></td>
-                        </tr>
-                    `;
-                });
+    function initChart() {
+        const ctx = document.getElementById('signalChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 100}, (_, i) => i * 10), // Eixo X em picossegundos
+                datasets: [
+                    {
+                        label: 'Sinal de Entrada (Ideal)',
+                        borderColor: '#8b949e',
+                        borderDash: [5, 5],
+                        data: [],
+                        fill: false,
+                        tension: 0
+                    },
+                    {
+                        label: 'Sinal de Saída (Real)',
+                        borderColor: '#58a6ff',
+                        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+                        data: [],
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                animation: { duration: 0 }, // Zero animação para parecer tempo real
+                scales: {
+                    x: { title: { display: true, text: 'Tempo (ps)', color: '#8b949e' }, grid: { color: '#30363d' } },
+                    y: { title: { display: true, text: 'Voltagem (V)', color: '#8b949e' }, min: 0, max: 3, grid: { color: '#30363d' } }
+                },
+                plugins: { legend: { labels: { color: '#c9d1d9' } } }
             }
-        } catch (error) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ff7b72;">Falha ao conectar com a API de persistência.</td></tr>';
-        }
+        });
     }
 
-    // Evento de submissão do formulário
-    document.getElementById('projectForm').addEventListener('submit', async function(event) {
-        event.preventDefault();
+    async function updateLab() {
+        const vdd = parseFloat(document.getElementById('vdd').value);
+        const w = parseFloat(document.getElementById('w').value);
+        const c = parseFloat(document.getElementById('c').value);
 
-        const projectData = {
-            name: document.getElementById('projectName').value,
-            authorName: document.getElementById('authorName').value,
-            targetBoard: document.getElementById('component').value
-        };
-
-        const resultBox = document.getElementById('resultBox');
-        resultBox.style.display = 'block';
-        resultBox.className = 'result-box';
-        resultBox.style.backgroundColor = '#21262d';
-        resultBox.style.color = '#c9d1d9';
-        resultBox.innerText = 'Orquestrando microsserviços...';
+        document.getElementById('vddVal').innerText = vdd.toFixed(1) + ' V';
+        document.getElementById('wVal').innerText = w + ' nm';
+        document.getElementById('cVal').innerText = c + ' fF';
 
         try {
-            const response = await fetch('/api/projects', {
+            // A Ponte entra em ação! Dispara o JSON pro Gerente que repassa pro Motor
+            const response = await fetch('/api/physics', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(projectData)
+                body: JSON.stringify({ vdd: vdd, widthNm: w, cLoadFf: c })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                resultBox.className = 'result-box';
                 
-                if (data.verificationStatus === 'PASSED') {
-                    resultBox.classList.add('passed');
-                    resultBox.innerText = `Sucesso! Status: ${data.verificationStatus} (LED Físico: ON)`;
-                } else if (data.verificationStatus === 'FAILED') {
-                    resultBox.classList.add('failed');
-                    resultBox.innerText = `Falha na Verificação! Status: ${data.verificationStatus} (LED Físico: OFF)`;
-                } else {
-                    resultBox.classList.add('failed');
-                    resultBox.innerText = `Aviso: Salvo, mas sem resposta do Motor (${data.verificationStatus})`;
-                }
+                document.getElementById('outCurrent').innerText = data.saturationCurrentUa + ' uA';
+                document.getElementById('outDelay').innerText = data.propagationDelayPs + ' ps';
                 
-                // Atualiza a tabela dinamicamente sem recarregar a página!
-                carregarHistorico();
-                document.getElementById('projectForm').reset();
-            } else {
-                throw new Error();
+                const regionEl = document.getElementById('outRegion');
+                regionEl.innerText = data.operationRegion;
+                regionEl.className = data.operationRegion === 'SATURAÇÃO' ? 'metric-value' : 'metric-value danger';
+
+                updateChart(vdd, data.propagationDelayPs);
             }
         } catch (error) {
-            resultBox.className = 'result-box failed';
-            resultBox.innerText = 'Erro crítico: O Gerente (Porta 8080) perdeu a conexão.';
+            console.error("Erro ao calcular a física:", error);
         }
-    });
+    }
 
-    // Carrega os dados assim que a tela abre
-    carregarHistorico();
+    function updateChart(vdd, delayPs) {
+        const inputData = [];
+        const outputData = [];
+        
+        // Simula o acionamento elétrico no instante t=100ps
+        for (let t = 0; t <= 1000; t += 10) {
+            if (t < 100) {
+                inputData.push(0);
+                outputData.push(0);
+            } else {
+                inputData.push(vdd);
+                // Fórmula de carga RC: O tempo dita a inclinação da curva
+                let tau = delayPs / 0.693; 
+                if (tau === 0 || isNaN(tau)) tau = 0.1; 
+                let vOut = vdd * (1 - Math.exp(-(t - 100) / tau));
+                outputData.push(vOut);
+            }
+        }
+
+        chartInstance.data.datasets[0].data = inputData;
+        chartInstance.data.datasets[1].data = outputData;
+        chartInstance.options.scales.y.max = Math.max(3, vdd + 0.5);
+        chartInstance.update();
+    }
+
+    initChart();
+    updateLab();
 </script>
-
 </body>
 </html>
