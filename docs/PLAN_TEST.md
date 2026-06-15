@@ -9,19 +9,12 @@ Este documento descreve a estratégia de Verificação e Validação (V&V) aplic
 * **Testes de Sistema/E2E:** Cypress (simulação do fluxo do estudante enviando um projeto no front-end).
 * **Integração Contínua (CI/CD):** GitHub Actions.
 
-## 2. Procedimentos e Padrões
-* **Controle de Versão:** Todo código deve ser versionado no GitHub.
-* **Commits:** Utilização do padrão *Conventional Commits* (ex: `feat:`, `fix:`, `test:`).
-* **Pull Requests (PR):** * Nenhuma alteração vai direto para a `main`.
-  * Todo PR deve acionar o pipeline do GitHub Actions.
-  * O merge só será permitido se a etapa de build e todos os testes automatizados passarem (Status: *Success*).
-
-## 3. Requisitos, Restrições e Configurações de Ambiente
+## 2. Requisitos, Restrições e Configurações de Ambiente
 * **Restrição de Linguagem:** O ambiente de testes rodará sob o Java JDK 17.
 * **Banco de Dados de Teste:** Os testes de persistência do `project-manager` utilizarão o H2 Database em memória ou Testcontainers (PostgreSQL) para não poluir o banco de produção.
 * **Dependência de EDA:** O `analytics-engine` pressupõe a existência de ferramentas de linting RTL no host (ex: Verilator) ou a simulação do retorno destas via *Mocks* durante os testes unitários em CI.
 
-## 4. Matriz de Funcionalidades vs. Testes
+## 3. Matriz de Funcionalidades vs. Testes
 
 | Funcionalidade / Módulo | Teste Estático | Teste Unitário | Teste de API | Teste de Sistema |
 | :--- | :---: | :---: | :---: | :---: |
