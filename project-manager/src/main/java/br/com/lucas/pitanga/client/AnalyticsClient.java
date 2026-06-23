@@ -1,5 +1,17 @@
 package br.com.lucas.pitanga.client;
 
+/**
+ * CLIENTE REST: COMUNICAÇÃO ENTRE MICROSSERVIÇOS
+ * -------------------------------------------------------------------------
+ * Interface responsável por estabelecer a ponte de comunicação HTTP entre o Web Service 1 (Project Manager) e o Web Service 2 (Analytics Engine).
+
+ * Utiliza a extensão REST Client do Quarkus para realizar chamadas 
+ 
+ * Garante o desacoplamento do sistema: o Gerente não precisa saber como a física do semicondutor é calculada, 
+ * apenas delega a carga computacional para o Motor e aguarda o retorno.
+ * 
+ */
+
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;

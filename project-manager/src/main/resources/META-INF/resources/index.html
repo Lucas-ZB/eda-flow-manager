@@ -14,6 +14,10 @@
         h2, h3 { color: #58a6ff; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
         label { font-weight: 600; margin-top: 15px; display: block; color: #8b949e; font-size: 14px; }
         input[type=range] { width: 100%; margin-top: 10px; cursor: pointer; }
+        input[type=text] { background: #0d1117; border: 1px solid #30363d; color: #e1e7f0; padding: 10px; border-radius: 4px; width: 100%; box-sizing: border-box; }
+        input[type=text]:focus { outline: none; border-color: #58a6ff; }
+        .btn { padding: 10px 20px; background-color: #238636; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; transition: background-color 0.2s; }
+        .btn:hover { background-color: #2ea043; }
         .value-display { float: right; color: #58a6ff; font-family: monospace; font-weight: bold; font-size: 16px; }
         .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
         .metric-box { background: #0d1117; border: 1px solid #30363d; padding: 15px; border-radius: 6px; text-align: center; }
@@ -21,6 +25,7 @@
         .metric-value { font-size: 24px; font-weight: bold; color: #3fb950; margin-top: 5px; font-family: monospace; }
         .metric-value.warning { color: #d29922; }
         .metric-value.danger { color: #ff7b72; }
+        #resultadoBd { margin-top: 15px; font-weight: bold; text-align: center; }
     </style>
 </head>
 <body>
@@ -30,13 +35,12 @@
 <div class="dashboard">
     <div class="card">
         <h3>Parâmetros Físicos</h3>
-        
         <label>Tensão de Alimentação (Vdd) <span id="vddVal" class="value-display">1.2 V</span></label>
         <input type="range" id="vdd" min="0.5" max="2.5" step="0.1" value="1.2" oninput="updateLab()">
-
+        
         <label>Largura do Transistor (W) <span id="wVal" class="value-display">360 nm</span></label>
         <input type="range" id="w" min="180" max="1000" step="10" value="360" oninput="updateLab()">
-
+        
         <label>Capacitância de Carga (C_load) <span id="cVal" class="value-display">50 fF</span></label>
         <input type="range" id="c" min="10" max="200" step="5" value="50" oninput="updateLab()">
 
@@ -56,43 +60,55 @@
         </div>
     </div>
 
-    <div class="card">
-        <h3>Análise de Sinais (Osciloscópio Virtual)</h3>
-        <canvas id="signalChart" height="150"></canvas>
+    <div style="display: flex; flex-direction: column; gap: 30px;">
+        <div class="card">
+            <h3>Análise de Sinais (Osciloscópio Virtual)</h3>
+            <canvas id="signalChart" height="150"></canvas>
+        </div>
+
+        <div class="card">
+            <h3>💾 Persistência de Projeto (Banco de Dados H2)</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                <div>
+                    <label style="margin-top:0;">Nome do Projeto</label>
+                    <input type="text" id="projectName" placeholder="ex: ALU 32-bit">
+                </div>
+                <div>
+                    <label style="margin-top:0;">Autor</label>
+                    <input type="text" id="authorName" placeholder="ex: Lucas Basso">
+                </div>
+                <div style="grid-column: span 2;">
+                    <label style="margin-top:0;">Placa Alvo (Target Board)</label>
+                    <input type="text" id="targetBoard" placeholder="ex: FPGA Cyclone V">
+                </div>
+            </div>
+            <button class="btn" onclick="enviarProjetoBD()">Executar V&V e Salvar Projeto</button>
+            <div id="resultadoBd"></div>
+        </div>
     </div>
 </div>
 
 <script>
     let chartInstance = null;
+    
+    // === NOVA VARIÁVEL GLOBAL ===
+    // Guarda o atraso real calculado pela física para ser usado na validação do banco
+    let delayAtualFisico = 100; 
 
     function initChart() {
         const ctx = document.getElementById('signalChart').getContext('2d');
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: Array.from({length: 100}, (_, i) => i * 10), // Eixo X em picossegundos
+                labels: Array.from({length: 100}, (_, i) => i * 10),
                 datasets: [
-                    {
-                        label: 'Sinal de Entrada (Ideal)',
-                        borderColor: '#8b949e',
-                        borderDash: [5, 5],
-                        data: [],
-                        fill: false,
-                        tension: 0
-                    },
-                    {
-                        label: 'Sinal de Saída (Real)',
-                        borderColor: '#58a6ff',
-                        backgroundColor: 'rgba(88, 166, 255, 0.1)',
-                        data: [],
-                        fill: true,
-                        tension: 0.4
-                    }
+                    { label: 'Sinal de Entrada (Ideal)', borderColor: '#8b949e', borderDash: [5, 5], data: [], fill: false, tension: 0 },
+                    { label: 'Sinal de Saída (Real)', borderColor: '#58a6ff', backgroundColor: 'rgba(88, 166, 255, 0.1)', data: [], fill: true, tension: 0.4 }
                 ]
             },
             options: {
                 responsive: true,
-                animation: { duration: 0 }, // Zero animação para parecer tempo real
+                animation: { duration: 0 },
                 scales: {
                     x: { title: { display: true, text: 'Tempo (ps)', color: '#8b949e' }, grid: { color: '#30363d' } },
                     y: { title: { display: true, text: 'Voltagem (V)', color: '#8b949e' }, min: 0, max: 3, grid: { color: '#30363d' } }
@@ -112,7 +128,6 @@
         document.getElementById('cVal').innerText = c + ' fF';
 
         try {
-            // A Ponte entra em ação! Dispara o JSON pro Gerente que repassa pro Motor
             const response = await fetch('/api/physics', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,13 +137,17 @@
             if (response.ok) {
                 const data = await response.json();
                 
+                // === ATUALIZAÇÃO DA VARIÁVEL GLOBAL ===
+                // Captura o atraso da física em tempo real
+                delayAtualFisico = data.propagationDelayPs;
+                
                 document.getElementById('outCurrent').innerText = data.saturationCurrentUa + ' uA';
                 document.getElementById('outDelay').innerText = data.propagationDelayPs + ' ps';
                 
                 const regionEl = document.getElementById('outRegion');
                 regionEl.innerText = data.operationRegion;
                 regionEl.className = data.operationRegion === 'SATURAÇÃO' ? 'metric-value' : 'metric-value danger';
-
+                
                 updateChart(vdd, data.propagationDelayPs);
             }
         } catch (error) {
@@ -139,30 +158,84 @@
     function updateChart(vdd, delayPs) {
         const inputData = [];
         const outputData = [];
-        
-        // Simula o acionamento elétrico no instante t=100ps
         for (let t = 0; t <= 1000; t += 10) {
             if (t < 100) {
                 inputData.push(0);
                 outputData.push(0);
             } else {
                 inputData.push(vdd);
-                // Fórmula de carga RC: O tempo dita a inclinação da curva
-                let tau = delayPs / 0.693; 
-                if (tau === 0 || isNaN(tau)) tau = 0.1; 
+                let tau = delayPs / 0.693;
+                if (tau === 0 || isNaN(tau)) tau = 0.1;
                 let vOut = vdd * (1 - Math.exp(-(t - 100) / tau));
                 outputData.push(vOut);
             }
         }
-
         chartInstance.data.datasets[0].data = inputData;
         chartInstance.data.datasets[1].data = outputData;
         chartInstance.options.scales.y.max = Math.max(3, vdd + 0.5);
         chartInstance.update();
     }
 
+    function enviarProjetoBD() {
+        const projectName = document.getElementById('projectName').value;
+        const authorName = document.getElementById('authorName').value;
+        const targetBoard = document.getElementById('targetBoard').value;
+        const resultDiv = document.getElementById('resultadoBd');
+
+        if(!projectName || !authorName || !targetBoard) {
+            resultDiv.innerText = "⚠️ Por favor, preencha todos os campos do projeto.";
+            resultDiv.style.color = "#d29922";
+            return;
+        }
+
+        resultDiv.innerText = "⏳ Analisando Timing (STA)...";
+        resultDiv.style.color = "#8b949e";
+
+        const projeto = {
+            name: projectName,
+            authorName: authorName,
+            targetBoard: targetBoard,
+            
+            // === INTEGRAÇÃO FÍSICA ===
+            // O transistor gerado pela interface agora é o motor da simulação STA
+            netlist: {
+                nodes: [
+                    { id: "Gate_Principal", type: "CMOS", delayPs: Math.round(delayAtualFisico) }
+                ],
+                edges: []
+            }
+        };
+
+        fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(projeto)
+        })
+        .then(async response => {
+            if(response.ok) {
+                const data = await response.json();
+                if (data.verificationStatus === "PASSED") {
+                    resultDiv.innerText = "✅ Projeto APROVADO (" + data.maxFreqGhz + " GHz) e salvo no banco de dados!";
+                    resultDiv.style.color = "#3fb950";
+                } else {
+                    resultDiv.innerText = "❌ Projeto REPROVADO (" + data.verificationStatus + "). Frequência atingida: " + data.maxFreqGhz + " GHz";
+                    resultDiv.style.color = "#ff7b72";
+                }
+            } else {
+                resultDiv.innerText = "❌ Ocorreu um erro no servidor HTTP.";
+                resultDiv.style.color = "#ff7b72";
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            resultDiv.innerText = "❌ Erro de comunicação com o servidor.";
+            resultDiv.style.color = "#ff7b72";
+        });
+    }
+
     initChart();
     updateLab();
 </script>
+
 </body>
 </html>

@@ -1,3 +1,17 @@
+/**
+ * WEB SERVICE 2: ANALYTICS ENGINE (Porta 8081)
+ 
+ * Motor matemático da aplicação, operando de forma 100% 'stateless' processando as requisições enviadas pelo Web Service 1.
+ *
+* Responsabilidades:
+ 
+ * - Executar algoritmos de Teoria dos Grafos (Busca em Profundidade - DFS) para cálculo do Caminho Crítico do chip.
+ 
+ * - Calcular a física de semicondutores (Equações de Shockley e Atraso RC).
+ 
+ * Lógica matemática referenciada da literatura clássica(Harris & Harris) de Design de Semicondutores e VLSI. Estrutura base Quarkus 
+ */
+
 package br.com.lucas.pitanga.resource;
 
 import jakarta.ws.rs.Consumes;
@@ -11,7 +25,7 @@ import jakarta.ws.rs.core.MediaType;
 @Consumes(MediaType.APPLICATION_JSON)
 public class TransistorResource {
 
-    // Entrada: O que o estudante vai alterar na interface
+    // Entrada: O que se pode alterar na interface
     public static class TransistorRequest {
         public double vdd;          // Tensão de Alimentação (V)
         public double widthNm;      // Largura do Transistor W (nm)
