@@ -1,31 +1,48 @@
 # Visão Geral do Sistema: EDA Flow Manager
 
 ## 1. Descrição do Sistema
-O **EDA Flow Manager** é um simulador focado em *Electronic Design Automation* (EDA) construído sob uma arquitetura de microsserviços. 
-O sistema tem como objetivo principal orquestrar e validar simulações de circuitos de Microeletrônica, permitindo que engenheiros analisem o comportamento físico de transistores CMOS (cálculo de atraso RC e correntes de saturação) e realizem a Análise de Tempo Estático (Static Timing Analysis - STA) para determinar a Frequência Máxima ($f_{max}$) de operação do chip projetado. O sistema valida as regras de negócio de *timing* e persiste os projetos aprovados.
+O **EDA Flow Manager** é um ecossistema de software voltado para *Electronic Design Automation* (EDA) estruturado em uma arquitetura de microsserviços. O sistema tem como objetivo principal orquestrar, simular e validar projetos de Microeletrônica. 
 
-## 2. Tecnologias Utilizadas
-A arquitetura foi projetada com foco em alta performance, desacoplamento e facilidade de V&V (Validação e Verificação), utilizando as seguintes tecnologias:
+A aplicação permite que engenheiros analisem o comportamento físico de transistores CMOS (calculando correntes de saturação e atraso de propagação RC) e realizem a Análise de Tempo Estático (Static Timing Analysis - STA) para determinar a Frequência Máxima ($f_{max}$) de operação do circuito projetado. O sistema aplica regras rígidas de validação de *timing* antes de permitir a persistência dos dados em um banco relacional.
+
+## 2. Tecnologias Utilizadas e Ecossistema
 
 ### Back-end (Microsserviços)
-* **Java 17:** Linguagem principal, garantindo tipagem forte e ecossistema maduro para algoritmos matemáticos complexos (Teoria dos Grafos).
-* **Quarkus Framework:** Framework Java *Cloud-Native*, utilizado para prover injeção de dependências (CDI), tempos de inicialização rápidos e roteamento HTTP (JAX-RS).
-* **REST Client (MicroProfile):** Utilizado para a comunicação síncrona, segura e tipada (via DTOs) entre os microsserviços.
-* **Hibernate ORM com Panache:** Implementação do padrão *Active Record* para mapeamento objeto-relacional de forma enxuta.
-* **Banco de Dados H2:** Banco de dados relacional operando *in-memory*, ideal para ambientes de simulação rápida e testes isolados.
+* **Java 17 & Quarkus Framework:** Escolhidos pela alta performance computacional, baixo consumo de memória e suporte nativo a microsserviços em nuvem.
+* **REST Client (MicroProfile):** Utilizado para estabelecer a comunicação síncrona, desacoplada e fortemente tipada entre o Gerente de Projetos (Web Service 1) e o Motor Analítico (Web Service 2).
+* **Hibernate ORM com Panache:** Implementação do padrão *Active Record* para simplificar o mapeamento objeto-relacional e manipulação de dados.
+* **Banco de Dados H2:** Banco de dados relacional operando *in-memory*, configurado estrategicamente com políticas de ciclo de vida isoladas para desenvolvimento (`drop-and-create`) e testes.
 
-### Front-end
-* **HTML5, CSS3 e JavaScript (ES6):** Interface nativa e reativa que consome as APIs RESTful do back-end utilizando a *Fetch API*.
-* **Chart.js:** Biblioteca de renderização gráfica utilizada para criar o "Osciloscópio Virtual", plotando as curvas de carga capacitiva dos transistores em tempo real.
-
-### Stack Prevista para Validação e Verificação (V&V)
-* **JUnit 5:** Framework base para a construção dos testes unitários e de integração.
-* **Mockito:** Framework de *mocking* utilizado para criar "dublês de teste" (ex: interceptar chamadas HTTP do REST Client), permitindo testar os microsserviços de forma determinística e isolada.
-* **REST Assured:** Ferramenta para testes de componentes e contratos de API (Endpoints REST).
+### Front-end Reativo
+* **HTML5, CSS3 e JavaScript (ES6):** Interface limpa e responsiva que consome as APIs assíncronas via *Fetch API*.
+* **Chart.js:** Renderização do "Osciloscópio Virtual", plotando as curvas de carga capacitiva dos transistores em tempo real de acordo com as respostas do motor físico.
 
 ## 3. Funcionalidades Core
-O sistema é dividido em dois serviços principais que se comunicam para realizar as seguintes funções:
 
-1. **Simulação da Física de Semicondutores:** O sistema recebe parâmetros físicos primários (Tensão Vdd, Largura do Canal W, Capacitância C_load) e calcula, em tempo real, a Corrente de Saturação e o Atraso de Propagação ($t_{pd}$) de uma porta lógica base.
-2. **Orquestração e V&V de Circuitos (STA):** O sistema recebe a topologia física (Netlist) de um projeto e a analisa utilizando Busca em Profundidade (DFS). O algoritmo localiza o "Caminho Crítico" do chip e determina sua Frequência Máxima de operação.
-3. **Persistência Baseada em Regras (Gateway):** O serviço atua como *Front Desk*, interceptando a requisição do usuário, consultando o motor analítico isolado e aplicando regras de negócio de engenharia (ex: aprovação restrita a projetos que alcancem pelo menos $10.0$ GHz de frequência). Apenas projetos que não possuam violações de *timing* são salvos no banco de dados.
+1. **Simulação da Física de Semicondutores:** Integração direta entre os controles deslizantes da interface (Tensão $V_{dd}$, Largura $W$ e Capacitância $C_{load}$) e o motor físico. O atraso de propagação ($t_{pd}$) calculado governa a simulação.
+2. **Análise de Tempo Estático (STA):** Mapeamento do circuito em estruturas de Grafos. O algoritmo calcula o caminho crítico do chip para definir a viabilidade de frequência.
+3. **Persistência Baseada em Regras (Gateway):** O microsserviço de gerência intercepta a requisição, analisa o *timing* e aplica a regra de negócio: circuitos com frequência máxima inferior a $10.0$ GHz são categorizados como `FAILED (Timing Violation)` e bloqueados de salvar, enquanto circuitos acima da meta recebem o status `PASSED`.
+
+## 4. Arquitetura de Validação e Verificação (V&V) Implementada
+
+O projeto adota uma pirâmide de testes automatizados e ferramentas de qualidade que garantem a estabilidade da aplicação:
+
+### Verificação Estática (Linter)
+* **Checkstyle:** Integrado diretamente ao ciclo de vida do Maven (`validate`). Aplica regras rígidas de formatação, proibição de *star imports* (`.*`), identificação de código morto (*unused imports*) e obrigatoriedade de chaves em blocos condicionais. O build é interrompido imediatamente caso haja violações de estilo.
+
+### Testes Unitários e de Integração (Back-end)
+* **JUnit 5 & Mockito:** Implementados no escopo do microsserviço principal. Utilizam `@InjectMock` para isolar o componente de rede do `AnalyticsClient`. Os testes validam de forma determinística os fluxos de aprovação ($15.0$ GHz $\rightarrow$ `PASSED`) e reprovação ($5.0$ GHz $\rightarrow$ `FAILED`), inspecionando as respostas JSON e códigos de status HTTP (`201 Created`).
+
+### Testes de Sistema End-to-End (Front-end)
+* **Cypress:** Robô de automação que valida o comportamento completo do usuário no navegador. A suíte executa testes automáticos para certificar a presença dos componentes visuais, o preenchimento correto dos formulários, o bloqueio de inputs vazios e a renderização das respostas dinâmicas em tela.
+
+## 5. Esteira de Integração Contínua (CI)
+
+A qualidade do código é assegurada por um pipeline automatizado via **GitHub Actions** (`ci.yml`). A cada evento de `push` ou `pull_request` direcionado às branches principais, o servidor de CI executa as seguintes etapas em um ambiente Linux (`ubuntu-latest`) isolado:
+
+1. **Checkout do Código:** Clonagem do estado atual do repositório.
+2. **Configuração do Ambiente:** Inicialização do JDK 17 (Distribuição Temurin) com cache ativo para o Maven.
+3. **Auditoria de Estilo:** Execução do Checkstyle para garantir conformidade estética (`mvn checkstyle:check`).
+4. **Execução da Suíte de Testes:** Rodada completa de testes unitários e de integração através do Maven (`mvn test`).
+
+O estado de *Merge* fica condicionado ao sucesso absoluto de todas as etapas da esteira (Status: *Build Passing*).
