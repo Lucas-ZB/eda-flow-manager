@@ -10,7 +10,7 @@ public class CircuitProject extends PanacheEntity {
     public String targetBoard;
     public String verificationStatus;
     
-    // Novas métricas de Microeletrônica!
+    // Métricas de Microeletrônica
     public int criticalPathPs;
     public double maxFreqGhz;
 }

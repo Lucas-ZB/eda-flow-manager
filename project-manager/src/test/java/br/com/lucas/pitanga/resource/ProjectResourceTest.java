@@ -1,92 +1,89 @@
 package br.com.lucas.pitanga.resource;
 
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import static org.hamcrest.CoreMatchers.is;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mockito;
+
 import br.com.lucas.pitanga.client.AnalyticsClient;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.notNullValue;
 
 @QuarkusTest
 public class ProjectResourceTest {
 
-    // 1. A Mágica do Mockito: Substituímos o cliente real por um Dublê!
+    // Mock do cliente REST para isolar este teste do outro microsserviço
     @InjectMock
     @RestClient
     AnalyticsClient analyticsClientMock;
 
     @Test
-    public void testCriacaoDeProjetoComSucessoNoTiming() {
-        
-        // 2. Treinando o Dublê (Configuração do Mockito)
-        // Criamos uma resposta falsa de sucesso (FMax = 25 GHz)
+    @DisplayName("Deve APROVAR o projeto quando a frequência for MAIOR que 10 GHz")
+    public void testProjetoAprovado() {
+
+        // Mock deve retornar 15.0 GHz
+
         AnalyticsClient.StaResult mockResult = new AnalyticsClient.StaResult();
-        mockResult.criticalPathDelayPs = 40;
-        mockResult.maxFreqGhz = 25.0;
-
-        // Dizemos ao Mockito: "Quando o Gerente tentar chamar o analyzeTiming com QUALQUER grafo, devolva o mockResult"
-        Mockito.when(analyticsClientMock.analyzeTiming(Mockito.any())).thenReturn(mockResult);
-
-        // 3. O Payload que simula o Front-end enviando os dados
-        String jsonPayload = """
-            {
-                "name": "Chip_Teste_Mockito",
-                "authorName": "Engenheiro QA",
-                "targetBoard": "SIMPLE_AND",
-                "netlist": {
-                    "nodes": [],
-                    "edges": []
-                }
-            }
-            """;
-
-        // 4. A Execução do Teste (REST Assured)
-        given()
-            .header("Content-Type", "application/json")
-            .body(jsonPayload)
-        .when()
-            .post("/api/projects")
-        .then()
-            .statusCode(201) // O Gerente deve conseguir salvar no banco H2
-            .body("id", notNullValue())
-            .body("name", is("Chip_Teste_Mockito"))
-            .body("maxFreqGhz", is(25.0f)) // Confirma que o Gerente usou o valor do Mock!
-            .body("verificationStatus", containsString("PASSED")); // Passou da meta de 10GHz
-    }
-
-    @Test
-    public void testCriacaoDeProjetoComViolacaoDeTiming() {
+        mockResult.criticalPathDelayPs = 66; // 1000 / 66 = ~15 GHz
+        mockResult.maxFreqGhz = 15.0;
         
-        // Treinando o Dublê para simular uma falha física (FMax = 5 GHz)
-        AnalyticsClient.StaResult mockResultLento = new AnalyticsClient.StaResult();
-        mockResultLento.criticalPathDelayPs = 200;
-        mockResultLento.maxFreqGhz = 5.0;
+        Mockito.when(analyticsClientMock.analyzeTiming(any())).thenReturn(mockResult);
 
-        Mockito.when(analyticsClientMock.analyzeTiming(Mockito.any())).thenReturn(mockResultLento);
-
-        String jsonPayload = """
+        String payloadJson = """
             {
-                "name": "Chip_Lento_Mockito",
-                "authorName": "Engenheiro QA",
-                "targetBoard": "RING_OSC",
+                "name": "ALU 32-bit (Test)",
+                "authorName": "Lucas Basso",
+                "targetBoard": "FPGA",
                 "netlist": { "nodes": [], "edges": [] }
             }
             """;
 
+        // AÇÃO (When) e VALIDAÇÃO (Then)
         given()
-            .header("Content-Type", "application/json")
-            .body(jsonPayload)
+          .contentType("application/json")
+          .body(payloadJson)
         .when()
-            .post("/api/projects")
+          .post("/api/projects")
         .then()
-            .statusCode(201)
-            .body("maxFreqGhz", is(5.0f))
-            // Confirma que o Gerente aplicou a regra de negócio correta para chips lentos
-            .body("verificationStatus", containsString("FAILED")); 
+          .statusCode(201) // 201 CREATED (Salvo no banco com sucesso)
+          .body("verificationStatus", is("PASSED"))
+          .body("maxFreqGhz", is(15.0f));
+    }
+
+    @Test
+    @DisplayName("Deve REPROVAR o projeto quando a frequência for MENOR que 10 GHz")
+
+    public void testProjetoReprovado() {
+
+        //Mock deve  retornar apenas 5.0 GHz (Chip Lento)
+        
+        AnalyticsClient.StaResult mockResult = new AnalyticsClient.StaResult();
+        mockResult.criticalPathDelayPs = 200; // 1000 / 200 = 5 GHz
+        mockResult.maxFreqGhz = 5.0;
+        
+        Mockito.when(analyticsClientMock.analyzeTiming(any())).thenReturn(mockResult);
+
+        String payloadJson = """
+            {
+                "name": "Chip Lento (Test)",
+                "authorName": "Lucas Basso",
+                "targetBoard": "ASIC",
+                "netlist": { "nodes": [], "edges": [] }
+            }
+            """;
+
+        // AÇÃO (When) e VALIDAÇÃO (Then)
+        given()
+          .contentType("application/json")
+          .body(payloadJson)
+        .when()
+          .post("/api/projects")
+        .then()
+          .statusCode(201)
+          .body("verificationStatus", is("FAILED (Timing Violation)"))
+          .body("maxFreqGhz", is(5.0f));
     }
 }
